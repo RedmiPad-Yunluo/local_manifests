@@ -4,8 +4,6 @@
         revision="lineage-20" />
     <remote name="lineageos" fetch="https://github.com/LineageOS"
     	revision="lineage-20" />
-    <remote name="nashc-dev" fetch="https://github.com/nashc-dev"
-	    revision="lineage-20" />
 
     <!-- Device / Kernel prebuilts -->
     <project path="device/xiaomi/yunluo" name="android_device_xiaomi_yunluo"
@@ -23,7 +21,6 @@
         remote="lineageos" />
 
     <project path="hardware/mediatek" name="android_hardware_mediatek" remote="6789-dev" />
-    <project path="hardware/mediatek/wlan" name="android_hardware_mediatek_wlan" remote="nashc-dev" />
 
     <!-- Proprietary vendor -->
     <project path="vendor/xiaomi/yunluo" name="android_vendor_xiaomi_yunluo"
