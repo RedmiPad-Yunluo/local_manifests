@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- LineageOS 24.0 yunluo bring-up using RedmiPad-Yunluo organization repositories. -->
+<manifest>
+    <remote name="yunluo" fetch="https://github.com/RedmiPad-Yunluo" revision="main" />
+    <remote name="lineageos" fetch="https://github.com/LineageOS" revision="lineage-24.0" />
+
+    <!-- Device tree and prebuilt kernel -->
+    <project path="device/xiaomi/yunluo" name="android_device_xiaomi_yunluo" remote="yunluo" />
+    <project path="device/xiaomi/yunluo-kernel" name="android_device_xiaomi_yunluo-kernel" remote="yunluo" />
+
+    <!-- MediaTek vendor SELinux policies -->
+    <remove-project name="android_device_mediatek_sepolicy_vndr" optional="true" />
+    <project path="device/mediatek/sepolicy_vndr" name="android_device_mediatek_sepolicy_vndr" remote="yunluo" />
+
+    <!-- Hardware dependencies -->
+    <project path="hardware/mediatek" name="android_hardware_mediatek" remote="yunluo" />
+    <project path="hardware/xiaomi" name="android_hardware_xiaomi" remote="lineageos" />
+
+    <!-- Proprietary vendor blobs -->
+    <project path="vendor/xiaomi/yunluo" name="android_vendor_xiaomi_yunluo" remote="yunluo" />
+</manifest>
