@@ -16,6 +16,10 @@
     <project path="hardware/mediatek" name="android_hardware_mediatek" remote="yunluo" />
     <project path="hardware/xiaomi" name="android_hardware_xiaomi" remote="lineageos" />
 
+    <!-- Fix toolkit: run after a successful sync on repo versions supporting post-sync. -->
+    <project path="tools/yunluo-build-fixes" name="local_manifests" remote="yunluo" />
+    <repo-hooks in-project="local_manifests" enabled-list="post-sync" />
+
     <!-- Proprietary vendor blobs -->
     <project path="vendor/xiaomi/yunluo" name="android_vendor_xiaomi_yunluo" remote="yunluo" />
 </manifest>
