@@ -1,8 +1,23 @@
 # Redmi Pad (yunluo) — LineageOS 24.0 local manifest
 
-This is the canonical source manifest for the unofficial Android 17 / LineageOS 24.0 project under the **RedmiPad-Yunluo** GitHub organization.
+Canonical source manifest for the unofficial Android 17 / LineageOS 24.0 project under **RedmiPad-Yunluo**.
 
-- `mt6789.xml` selects the organization device, vendor and MediaTek repositories on `main` and LineageOS components on `lineage-24.0`.
-- [`toolkit/README.md`](toolkit/README.md) describes the reusable build fixes, audit scripts and memory notes. The toolkit is temporarily bundled here because the organization has no separate toolkit repository.
+- `mt6789.xml` syncs organization device/vendor/MediaTek source on `main`, with LineageOS hardware/xiaomi on `lineage-24.0`.
+- `post-sync.py` and `toolkit/scripts/apply-known-fixes.py` maintain known build fixes.
+- Fixes include vendor SELinux genfscon/neverallow issues, PowerOffAlarm's generated kernel header conflict, and the external libjxl / dng_sdk vendor-variant Soong issues, plus prior device/vendor bring-up fixes.
 
-**Current status:** the wattOS R13 build had reached normal compilation, not a confirmed completed or boot-tested ROM. Do not change the current workstation source checkout or rerun repo sync while its build is active.
+## Fresh builds
+
+Use the manifest by copying `mt6789.xml` into `.repo/local_manifests/` **before** syncing. On repo versions with `post-sync` hook support (introduced in 2025, newer than the 2.36 launcher), `repo sync` can run the fix script automatically after you explicitly approve the hook once. Older versions ignore this hook; do not assume a clean checkout is patched just because sync succeeded.
+
+The same script can be run explicitly before building on any version:
+
+```bash
+python3 tools/yunluo-build-fixes/toolkit/scripts/apply-known-fixes.py --root . --apply
+```
+
+The helper is idempotent for its supported source layouts: already-fixed inputs are left unchanged, backups are written beneath `out/lineage-source-fix-backups/`, and unexpected source layouts cause an error. Review `git diff` after a patch. The automatic hook's failures are warnings from repo, so verify the output.
+
+**Do not run repo sync or apply patches during an ongoing build.** These source changes have passed Soong in one local build, which does not prove the complete ROM builds, boots, or is ready for release.
+
+See [toolkit documentation](toolkit/README.md) for details.
