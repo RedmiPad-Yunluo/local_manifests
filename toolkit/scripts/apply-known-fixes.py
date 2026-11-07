@@ -116,8 +116,85 @@ def patch_device_android_mk(content):
     return content
 
 
+
+def patch_libjxl(content):
+    # libjxl's dependencies do not provide vendor variants in lineage-24.0.
+    return replace_once(
+        content,
+        '    name: "libjxl",\n    host_supported: true,\n    vendor_available: true,\n',
+        '    name: "libjxl",\n    host_supported: true,\n',
+        "libjxl unsupported vendor variant",
+    )
+
+
+def patch_dng_sdk(content):
+    # DNG SDK's libjxl and xmp_toolkit_sdk dependencies are platform-only.
+    return replace_once(
+        content,
+        '    name: "libdng_sdk",\n    host_supported: true,\n'
+        '    defaults: ["libdng_sdk-defaults"],\n    vendor_available: true,\n',
+        '    name: "libdng_sdk",\n    host_supported: true,\n'
+        '    defaults: ["libdng_sdk-defaults"],\n',
+        "libdng_sdk unsupported vendor variant",
+    )
+
+
+def patch_poweroffalarm(content):
+    # The generated kernel linux/sched/types.h clashes with Bionic sched.h.
+    # The PowerOffAlarm C++ sources only need the normal Bionic UAPI headers.
+    return replace_once(
+        content,
+        '        "libbase_headers",\n        "generated_kernel_headers",\n',
+        '        "libbase_headers",\n',
+        "PowerOffAlarm duplicate sched_param declaration",
+    )
+
+
+def comment_exact_rule(content, rule, label, pattern=None):
+    import re
+    lines = content.splitlines(keepends=True)
+    hits = []
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if (re.fullmatch(pattern, stripped) if pattern else stripped == rule):
+            hits.append(index)
+    if len(hits) > 1:
+        raise LayoutError(f"{label}: multiple active rules found")
+    if hits:
+        index = hits[0]
+        lines[index] = "# " + lines[index]
+    return "".join(lines)
+
+
+def patch_genfs_contexts(content):
+    content = comment_exact_rule(
+        content,
+        "genfscon proc /sys/vm/dirty_writeback_centisecs u:object_r:proc_dirty:s0",
+        "duplicate proc dirty_writeback_centisecs",
+    )
+    return comment_exact_rule(
+        content,
+        "",
+        "conflicting sysfs /class/typec label",
+        r"genfscon\s+sysfs\s+/class/typec\s+u:object_r:sysfs_usb_nonplat:s0",
+    )
+
+
+def patch_system_server_te(content):
+    return comment_exact_rule(
+        content,
+        "allow system_server self:capability sys_module;",
+        "system_server forbidden sys_module capability",
+    )
+
+
 FIXES = {
     "hardware/mediatek/Android.bp": patch_hardware,
+    "hardware/mediatek/PowerOffAlarm/Android.bp": patch_poweroffalarm,
+    "external/libjxl/Android.bp": patch_libjxl,
+    "external/dng_sdk/Android.bp": patch_dng_sdk,
+    "device/mediatek/sepolicy_vndr/basic/non_plat/genfs_contexts": patch_genfs_contexts,
+    "device/mediatek/sepolicy_vndr/basic/non_plat/system_server.te": patch_system_server_te,
     "device/xiaomi/yunluo/BoardConfig.mk": patch_boardconfig,
     "device/xiaomi/yunluo/Android.mk": patch_device_android_mk,
     "device/xiaomi/yunluo/device.mk": patch_device_mk,
