@@ -32,7 +32,7 @@ See [fix history](docs/fix-history.md) for failures, locations, and scope.
 
 ## Use on a future fresh checkout
 
-For a source directory such as ~/android/lineage, first sync the [organization manifest](https://github.com/RedmiPad-Yunluo/local_manifests/blob/main/mt6789.xml). The organization repositories should **already** include the fixes above.
+For a source directory such as ~/android/lineage, first sync the [organization manifest](https://github.com/RedmiPad-Yunluo/local_manifests/blob/main/mt6789.xml). The organization device/vendor/MediaTek repositories include the previously committed fixes. External-project edits are handled by the fix script.
 
 Clone the organization manifest repository to a separate helper directory (without changing a running build), then inspect what (if anything) needs patching:
 
@@ -49,6 +49,8 @@ python3 ~/yunluo_manifests_toolkit/toolkit/scripts/apply-known-fixes.py --root ~
 
 The helper validates all targeted files before changing any; it refuses unexpected layouts and backs up modified files under out/lineage-source-fix-backups/. It does **not** edit build/soong or run repo sync, make clean, or the build itself.
 
+Newer repo clients support the manifest's optional `post-sync` hook, which invokes this helper automatically after user approval. Older repo clients such as the previously reported 2.36 require running the command above explicitly. **Do not sync or apply fixes while a build is running.**
+
 ## Host memory
 
 See [memory and swap](docs/memory-and-swap.md). Our wattOS R13 test system has 16 GiB-class physical RAM, 8 GiB ZRAM (zstd, priority 100), and two 32 GiB NVMe swapfiles (priorities -2 and -3). This has shown severe memory stalls in Soong. Trying 16 GiB ZRAM is a **test**, not a confirmed fix. Never run swapoff -a while building or under high swap usage.
@@ -56,7 +58,7 @@ See [memory and swap](docs/memory-and-swap.md). Our wattOS R13 test system has 1
 ## Experimental or unproven changes
 
 - Local build/soong/cmd/soong_build/main.go tweak: runtime/debug.SetGCPercent(40) and SetMemoryLimit(12 << 30). **Not a validated optimization; not applied by this helper**. It may increase garbage-collection overhead and slow a memory-heavy build. Prefer stock Soong for reliable A/B testing.
-- external/libjxl/Android.bp vendor_available removal was an older workaround for an Android.bp vendor-variant error. **Not automatically applied** because it changes an external project and may have side effects.
+- External `libjxl` and `libdng_sdk` `vendor_available` removals are now included in the guarded helper because the November 7 local build passed Soong after those edits. The helper also handles `PowerOffAlarm` headers and the three MediaTek SELinux rules. This is not yet a complete-build or runtime validation, so reconfirm on future Android updates.
 - Compilation passed Soong Android.bp analysis and then exposed Make/module errors. Passing bootstrap does not imply the ROM boots.
 
 ## Safety
