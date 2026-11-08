@@ -5,6 +5,7 @@ Canonical source manifest for the unofficial Android 17 / LineageOS 24.0 project
 - `mt6789.xml` syncs organization device/vendor/MediaTek source on `main`, with LineageOS hardware/xiaomi on `lineage-24.0`.
 - `post-sync.py` and `toolkit/scripts/apply-known-fixes.py` maintain known build fixes.
 - Fixes include vendor SELinux genfscon/neverallow issues, PowerOffAlarm's generated kernel header conflict, and the external libjxl / dng_sdk vendor-variant Soong issues, plus prior device/vendor bring-up fixes.
+- The helper also backports the earlier AOSP Android 17 FCM 6 compatibility matrix into `hardware/interfaces/compatibility_matrices` for the legacy `5.10-android12` kernel (using a pinned AOSP Android tag). This is an experimental compatibility backport, not current official support, and still requires a successful VINTF check.
 
 ## Fresh builds
 
