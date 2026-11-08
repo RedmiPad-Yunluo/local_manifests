@@ -188,9 +188,83 @@ def patch_system_server_te(content):
     )
 
 
+
+# Compatibility backport: Android 17 used to ship an FCM 6 matrix for
+# Android 12-launch devices. This is NOT official support on current QPRs.
+FCM_RELATIVE_PATH = "hardware/interfaces/compatibility_matrices/compatibility_matrix.6.android17.xml"
+FCM_AOSP_URL = (
+    "https://android.googlesource.com/platform/hardware/interfaces/+/"
+    "refs/tags/android-16.0.0_r4/compatibility_matrices/"
+    "compatibility_matrix.6.android17.xml?format=TEXT"
+)
+
+
+def patch_fcm_bp(content):
+    name = "framework_compatibility_matrix.6.android17.xml"
+    key = f'    name: "{name}",'
+    anchor = "SYSTEM_MATRIX_DEPS_A17 = [\n"
+    entry = f'    "{name}",\n'
+    if content.count(anchor) != 1:
+        raise LayoutError("Android 17 FCM list missing or changed")
+    # Only add the missing Android 17 dependency, not Android 18's.
+    start = content.index(anchor) + len(anchor)
+    end = content.find("]", start)
+    if end == -1:
+        raise LayoutError("Unterminated Android 17 FCM list")
+    list_part = content[start:end]
+    if entry not in list_part:
+        content = content[:start] + entry + content[start:]
+    if content.count(key) > 1:
+        raise LayoutError("Duplicate Android 17 FCM 6 module definitions")
+    module = (
+        'vintf_compatibility_matrix {\n'
+        f'{key}\n'
+        '    stem: "compatibility_matrix.6.android17.xml",\n'
+        '    srcs: ["compatibility_matrix.6.android17.xml"],\n'
+        '    kernel_configs: [\n'
+        '        "kernel_config_s_4.19",\n'
+        '        "kernel_config_s_5.4",\n'
+        '        "kernel_config_s_5.10",\n'
+        '    ],\n'
+        '}\n\n'
+    )
+    if key not in content:
+        # Keep it with the other generated framework compatibility modules.
+        next_module = (
+            'vintf_compatibility_matrix {\n'
+            '    name: "framework_compatibility_matrix.7.xml",'
+        )
+        if content.count(next_module) != 1:
+            raise LayoutError("Cannot locate FCM 7 module insertion point")
+        content = content.replace(next_module, module + next_module, 1)
+    elif 'stem: "compatibility_matrix.6.android17.xml"' not in content:
+        raise LayoutError("FCM 6 Android 17 module has an unexpected definition")
+    return content
+
+
+def fetch_legacy_fcm_xml():
+    import base64
+    import urllib.request
+    import xml.etree.ElementTree as ET
+
+    try:
+        with urllib.request.urlopen(FCM_AOSP_URL, timeout=30) as response:
+            encoded = response.read(262144)
+        data = base64.b64decode(encoded, validate=True)
+        root = ET.fromstring(data)
+    except Exception as exc:
+        raise LayoutError(f"Cannot fetch/parse pinned AOSP FCM 6 matrix: {exc}")
+    if root.tag != "compatibility-matrix" or root.get("type") != "framework":
+        raise LayoutError("Downloaded AOSP matrix is not a framework matrix")
+    if root.get("level") != "6":
+        raise LayoutError("Downloaded AOSP matrix does not declare FCM 6")
+    return data.decode("utf-8")
+
+
 FIXES = {
     "hardware/mediatek/Android.bp": patch_hardware,
     "hardware/mediatek/PowerOffAlarm/Android.bp": patch_poweroffalarm,
+    "hardware/interfaces/compatibility_matrices/Android.bp": patch_fcm_bp,
     "external/libjxl/Android.bp": patch_libjxl,
     "external/dng_sdk/Android.bp": patch_dng_sdk,
     "device/mediatek/sepolicy_vndr/basic/non_plat/genfs_contexts": patch_genfs_contexts,
@@ -226,6 +300,25 @@ def main():
             print(f"PATCH    {name}")
             changes[name] = (before, after)
 
+    # Preserve fresh-checkout compatibility: the AOSP matrix is intentionally
+    # downloaded from a pinned Android source tag rather than reproduced here.
+    fcm_file = root / FCM_RELATIVE_PATH
+    if fcm_file.is_file():
+        import xml.etree.ElementTree as ET
+        try:
+            xml_root = ET.parse(fcm_file).getroot()
+        except ET.ParseError as exc:
+            raise LayoutError(f"Invalid existing legacy FCM XML: {exc}")
+        if (xml_root.tag != "compatibility-matrix"
+                or xml_root.get("type") != "framework"
+                or xml_root.get("level") != "6"):
+            raise LayoutError("Existing legacy FCM XML has unexpected contents")
+        print(f"OK       {FCM_RELATIVE_PATH} (already present)")
+    else:
+        print(f"FETCH    {FCM_RELATIVE_PATH} (AOSP android-16.0.0_r4)")
+        if args.apply:
+            changes[FCM_RELATIVE_PATH] = (None, fetch_legacy_fcm_xml())
+
     if not changes:
         print("All known source fixes already present. No files changed.")
         return 0
@@ -239,8 +332,10 @@ def main():
     for name in changes:
         dest = backup / name
         dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(root / name, dest)
+        if (root / name).is_file():
+            shutil.copy2(root / name, dest)
     for name, (_, after) in changes.items():
+        (root / name).parent.mkdir(parents=True, exist_ok=True)
         (root / name).write_text(after, encoding="utf-8")
     print(f"Applied {len(changes)} file patches.")
     print(f"Backups: {backup}")
